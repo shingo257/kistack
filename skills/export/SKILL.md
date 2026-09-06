@@ -118,3 +118,25 @@ Determine which PCB and scheamtic output commands you need to use (documentation
     --side bottom <project>.kicad_pcb
 
 Unless otherwise specified by the user, DRC and ERC errors will result in you throwing a FAILURE to export. If there is a FAILURE you can prompt them: "Should we proceed with export? Please reply with OVERRIDE to restart."
+
+### Windows / KiCad 10 agent notes (field-tested)
+
+- Prefer invoking the full path to `kicad-cli.exe`, e.g.  
+  `C:\Program Files\KiCad\10.0\bin\kicad-cli.exe`  
+  Do not assume `kicad-cli` is on PATH in PowerShell agent shells.
+- After schematic changes, always re-export netlist into the review folder **before** arguing about connectivity. Stale `netlist.kicad_net` has caused false confidence.
+- `import pcbnew` from a normal system Python often fails with `_pcbnew` DLL load errors on Windows. Prefer:
+  - `kicad-cli` for ERC/DRC/netlist/Gerbers/SVG/render, or
+  - KiCad's own Python (same `bin` directory on PATH) if you truly need pcbnew.
+- ERC Warnings such as `lib_symbol_mismatch` (embedded sheet symbol vs project lib) are not the same as electrical correctness. Still fix or acknowledge them; never treat "0 ERC errors" as "circuit is safe."
+- For LLM review packs, keep at least: `erc.rpt`, fresh `netlist` (sexpr or xml), schematic SVG/PDF zooms of power and buses, and PCB layer SVGs + DRC.
+
+### Optional geometry audit
+
+If labels/wires may be misaligned to pins, run:
+
+```bash
+python skills/export/scripts/check_sch_geo_vs_netlist.py path/to/sheet_or_project_dir
+```
+
+Use it together with a fresh `kicad-cli sch export netlist`, not instead of it.
