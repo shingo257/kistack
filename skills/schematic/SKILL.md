@@ -33,6 +33,8 @@ You need, instead, to iterate based on image input. That means you need to plot 
 
 You still need to look at netlists to deterministically validate connections.
 
+If eeschema's IPC API isn't usable in your environment (kicad-python has shipped broken against the IPC server in some KiCad releases — check by actually calling something like `get_open_documents()`, not just by confirming the import succeeds), you can still generate schematics reliably by writing the `.kicad_sch` S-expression text directly with a small script, then validating with `kicad-cli sch erc` and rendering — same iterate-on-images loop, just scripted instead of GUI-driven. Two facts make hand/script-authored coordinates tractable instead of guesswork: (1) with a symbol instance at `(at inst_x inst_y 0)` (no rotation), a pin's absolute position is `inst_x + local_x, inst_y - local_y` — the Y axis flips sign between symbol-library space and schematic space. Don't assume this, confirm it once by placing a test symbol and reading the real pin coordinates back out of a `kicad-cli sch erc` report. (2) A label only joins a wire/pin if its `(at)` coordinate is the *exact* same point — even a 0.5mm cosmetic offset "for readability" makes ERC report `label_dangling` and `unconnected_wire_endpoint`, because the label is no longer touching anything. If a rendered image looks fine (SVGs/PDFs still show a label's connection tick even when it's technically not on the wire) but ERC disagrees, trust the ERC report.
+
 Important things you should be looking for are that all visible properties of components are not overlapping with other things or each other, and that everything is clean and tidy (no overly long wires, etc.).
 
 You need to make it look like it's straight out of a reference schematic for the parts: clean and tidy.
@@ -43,13 +45,15 @@ You need to use a ton of image input; do not hesitate. Every time it's not clean
 
 You should also be plotting pictures of subcircuits and more specific things you need to clean up. I know for a fact that you can't take in the whole schematic all at once, so zoom in. Iterate. It has to look clean and functional and be correct.
 
+If your image tool struggles to preview a large rendered SVG (some environments cap what they'll show for a big file), export a PDF instead and read it as a document/image, or plot with a small custom page size that tightly wraps just the area you're reviewing — `(paper "User" width height)` in the `.kicad_sch` (in mm) — so the same fixed image resolution shows far more detail. Don't edit the real page size for this, just do it on a scratch copy for the review pass.
+
 For passives, use the small KiCad standard symbols. Use the Resistor_Small_US symbol, regular capacitor and inductor though.
 
 You will need to modify symbols of ICs to make passives look good.
 
 Wire them up logically next to the component where it makes sense (for example, pull-downs/ups and decoupling). This is the exception to the "use nets" rule, these will need to be wired with normal wires, not nets, for the most part. Passives are an exception to the general "use labels instead of lines" rule. Use power symbols as well instead of labels for VDD, GND, +3V3, etc. these sort of nets need to be obvious, more than just a label. If a power symbol does not exist with that name, just rename an existing one. Preference is the default GND symbol for ground, VDD for positive power supplies (outline arrow pointing up), and VSS for negative power supplies (filled arrow pointing down). Ground must ALWAYS point down. Positive power supplies must ALWAYS point up. Negative power supplies must ALWAYS point down. Always ensure that these do not overlap with text, including their wires! 
 
-If using PWR_FLAG symbols, put them near the source of the power supply rather than randomly on the sheet.
+If using PWR_FLAG symbols, put them near the source of the power supply rather than randomly on the sheet. Placing one nearby isn't enough by itself: it has to actually be wired onto the net (or share the exact same coordinate as a pin already on it) or ERC will still report `power_pin_not_driven`, since an unconnected flag doesn't join anything.
 
 When adding test points, add them near the actual net in question.
 
@@ -64,6 +68,8 @@ For new passives, mostly as placeholders, add footprints from the standard KiCad
 Do use some discretion about what passives should be directly connected to what for aesthetics.
 
 In general, groups of decoupling capacitors do not need a ground symbol per capacitor, or a VDD symbol per capacitor. Group them with comfortable breathing room between them, and by default physically connect them to the proper pins of the IC they are decoupling. If power supplies are sourced from the same regulator without any components in between, they can be bridged as well.
+
+Watch the topology when you do this, especially scripting it: each decoupling cap is a PARALLEL branch off the rail down to ground, never IN SERIES between the pin and the rail. Wiring `pin -> cap -> rail` instead of `pin -> rail` (with the cap T-ing off separately to ground) silently leaves the pin floating at DC — a real capacitor blocks DC, so the "decoupled" pin would never actually reach the supply voltage. It'll look identical to the correct wiring in a quick glance at the render; ERC's `power_pin_not_driven` / `ground_pin_not_ground` is what actually catches it, so don't skip the ERC pass just because the picture looks right.
 
 You can't start looking for parts during the schematic wire-up process. If a part was not already given to you and you were not asked to find it, don't look for it.
 
