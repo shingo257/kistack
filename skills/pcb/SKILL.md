@@ -1,4 +1,4 @@
----
+﻿---
 name: kicad-pcb
 description: Review KiCad PCB layouts with DRC, layer renders, and 3D-model interference inspection.
 ---
@@ -26,3 +26,16 @@ Confirm with kicad-cli that DRC rules pass.
 Use kicad-cli to render SVGs of board layers to validate that their connections look reasonable.
 
 Use kicad-cli to render images of various areas of the PCB to validate interference with 3D models.
+
+## After schematic net changes
+
+1. Export a fresh netlist (`kicad-cli sch export netlist`) and read annotation warnings.
+2. Sync PCB pad nets from that netlist (KiCad `bin\python.exe` + pcbnew, or Update PCB from schematic in the GUI).
+3. Remap copper that still carries the old net name near remapped pads; refill zones; re-run DRC with `--refill-zones --schematic-parity`.
+4. Treat large clearance/short bursts after a net rename as a sync problem first, not a place-from-scratch problem.
+
+## Tooling caveats
+
+- KiCad MCP / footprint-parity tools that only read instance `Footprint` fields can report "0 schematic footprints" when instances leave Footprint blank and the library symbol holds the real footprint. Cross-check with netlist refs vs PCB refs before ripping up the board.
+- IPC/`pcbnew` live sessions may be unavailable; file-backed `.kicad_pcb` + `kicad-cli` is the reliable path on Windows agents.
+
