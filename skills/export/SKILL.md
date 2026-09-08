@@ -1,4 +1,4 @@
-﻿---
+---
 name: kicad-export
 description: Generate deterministic KiCad ERC, DRC, fabrication, assembly, documentation, and 3D export outputs with kicad-cli.
 ---
@@ -122,6 +122,7 @@ Unless otherwise specified by the user, DRC and ERC errors will result in you th
 ### Windows / KiCad 10 agent notes (field-tested)
 
 - Prefer the full path to `kicad-cli.exe`, e.g. `C:\Program Files\KiCad\10.0\bin\kicad-cli.exe`. Do not assume `kicad-cli` is on PATH in PowerShell agent shells.
+- Artwork DRC gate (JSON): `kicad-cli pcb drc --format json --severity-all --refill-zones --output …`. Typo `--satisfaction-all` is invalid and yields a stale/missing report.
 - After schematic changes, always re-export netlist **before** arguing about connectivity. Stale `netlist.kicad_net` causes false confidence.
 - `kicad-cli sch export netlist` can print an annotation warning and still exit 0. Treat that warning as a hard signal — do not assume a clean exit means annotation is fine.
 - `import pcbnew` from system Python often fails with `_pcbnew` DLL load errors on Windows. Prefer `kicad-cli`, or KiCad's own `bin\python.exe` with `bin` on `PATH` when you truly need pcbnew.
@@ -139,4 +140,3 @@ python skills/export/scripts/check_sch_geo_vs_netlist.py path/to/sheet_or_projec
 ```
 
 Use it together with a fresh `kicad-cli sch export netlist`, not instead of it.
-
